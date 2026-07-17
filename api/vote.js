@@ -1,34 +1,29 @@
-const { kv } = require('@vercel/kv');
+import { kv } from '@vercel/kv';
 
-const NAMES = ["Ananda","Cauã","Hellen","João Vitor","Karla","Manu","Renam","Rodrigo (o Karam)","Serefim"];
-
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed' });
-    return;
+    return res.status(405).json({ error: 'method not allowed' });
   }
   try {
-    let body = req.body;
-    if (typeof body === 'string') {
-      body = JSON.parse(body);
-    }
-    const rating = Number(body && body.rating);
-    const name = (body && body.name ? String(body.name) : '').trim().slice(0, 60);
-
-    if (!Number.isInteger(rating) || rating < 0 || rating > 10) {
-      res.status(400).json({ error: 'Nota inválida' });
-      return;
-    }
-    if (!name) {
-      res.status(400).json({ error: 'Nome inválido' });
-      return;
+    const finalized = await kv.get('hotseat:finalized');
+    if (finalized === '1' || finalized === 1 || finalized === true) {
+      return res.status(403).json({ error: 'closed' });
     }
 
-    await kv.hincrby('hotseat:ratings', String(rating), 1);
-    await kv.hincrby('hotseat:names', name, 1);
+    const { rating, name } = req.body || {};
+    const r = parseInt(rating, 10);
+    if (isNaN(r) || r < 0 || r > 10) {
+      return res.status(400).json({ error: 'invalid rating' });
+    }
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: 'invalid name' });
+    }
+
+    await kv.hincrby('hotseat:ratings', String(r), 1);
+    await kv.hincrby('hotseat:names', name.trim(), 1);
 
     res.status(200).json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: 'Erro interno', details: String(err && err.message || err) });
+  } catch (e) {
+    res.status(500).json({ error: 'server error' });
   }
-};
+}
