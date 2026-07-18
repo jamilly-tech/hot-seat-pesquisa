@@ -135,6 +135,7 @@ const notaBars = document.getElementById('notaBars');
 notaBars.innerHTML = '';
 for (let n = 10; n >= 0; n--){
 const c = parseInt(ratings[n] || 0, 10);
+  if (c === 0) continue;
 const pct = totalNota ? Math.round((c/totalNota)*100) : 0;
 notaBars.innerHTML += barRow('Nota ' + n, c, pct);
 }
